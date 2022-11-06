@@ -53,7 +53,7 @@ def get_api_answer(current_timestamp):
         response = requests.get(
             ENDPOINT, headers=HEADERS, params=params,
         )
-    except Exception as error:
+    except Exception:
         logger.error("Ошибка при обращении к API")
     if response.status_code != HTTPStatus.OK:
         message = "Сбой при запросе к API"
@@ -116,11 +116,13 @@ def main():
             homework = check_response(response)[0]
             if homework:
                 message = parse_status(homework)
-                current_report[response.get("homework_name")] = response.get("status")
+                current_report[response.get(
+                    "homework_name")] = response.get("status")
                 if current_report != prev_report:
                     send_message(bot, message)
                     prev_report = current_report.copy()
-                    current_report[response.get("homework_name")] = response.get("status")
+                    current_report[response.get(
+                        "homework_name")] = response.get("status")
             current_timestamp = response.get("current_date")
 
         except Exception as error:
