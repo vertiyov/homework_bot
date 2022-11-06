@@ -108,20 +108,20 @@ def main():
     if not check_tokens():
         logger.critical("Ошибка в получении токенов")
         sys.exit()
-    current_report = {}
-    prev_report = {}
+    actual_status = {}
+    previous_status = {}
     while True:
         try:
             response = get_api_answer(current_timestamp)
             homework = check_response(response)[0]
             if homework:
                 message = parse_status(homework)
-                current_report[response.get(
+                actual_status[response.get(
                     "homework_name")] = response.get("status")
-                if current_report != prev_report:
+                if actual_status != previous_status:
                     send_message(bot, message)
-                    prev_report = current_report.copy()
-                    current_report[response.get(
+                    previous_status = actual_status.copy()
+                    actual_status[response.get(
                         "homework_name")] = response.get("status")
             current_timestamp = response.get("current_date")
 
