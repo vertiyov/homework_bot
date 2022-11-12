@@ -3,6 +3,7 @@ import os
 import sys
 import time
 from http import HTTPStatus
+from pprint import pprint
 
 import requests
 import telegram
@@ -57,11 +58,6 @@ def get_api_answer(current_timestamp):
 def check_response(response):
     """Проверка ответа API на корректность."""
     homework_response = response['homeworks']
-    if not isinstance(response, dict):
-        raise KeyError(
-            f'Неверный тип данных. Type "homework_response":'
-            f'{type(response)}. Ожидаемый тип dict'
-        )
     if 'homeworks' not in response.keys():
         raise custom_exeptions.CheckResponseError(
             'Ошибка словаря по ключу homeworks'
@@ -97,39 +93,8 @@ def check_tokens():
     return all([PRACTICUM_TOKEN, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID])
 
 
-def main():
-    """Основная логика работы бота."""
-    bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    current_timestamp = int(time.time())
 
-    if not check_tokens():
-        sys.exit('Ошибка в получении токенов')
-
-    while True:
-        try:
-            response = get_api_answer(current_timestamp)
-            homeworks = check_response(response)
-            current_timestamp = response.get('current_date')
-            for homework in homeworks:
-                message = parse_status(homework)
-                send_message(bot, message)
-        except Exception as error:
-            logger.error(f'Сбой в работе программы: {error}')
-            send_message(bot, str(error))
-        finally:
-            time.sleep(RETRY_TIME)
+response = get_api_answer(0)
+pprint(type(response))
 
 
-if __name__ == '__main__':
-    main()
-    logging.basicConfig(
-        level=logging.INFO,
-        filename='homework_bot.log',
-        filemode='w'
-    )
-    handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter(
-        '%(asctime)s, %(levelname)s, %(message)s, %(name)s'
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
