@@ -8,7 +8,7 @@ import requests
 import telegram
 from dotenv import load_dotenv
 
-import custom_exeptions
+import exeption
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -33,10 +33,8 @@ def send_message(bot, message):
     """Отправка сообщения в Telegram чат."""
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-    except custom_exeptions.SendMessageError:
-        logger.error(f'Сообщение {message} не отправлено')
-    else:
-        logger.info(f"Сообщение {message} отправлено")
+    except telegram.error.BadRequest:
+        pass
 
 
 def get_api_answer(current_timestamp):
@@ -47,32 +45,42 @@ def get_api_answer(current_timestamp):
             ENDPOINT, headers=HEADERS, params=params,
         )
         response.json()
-    except custom_exeptions.GetApiAnswerError:
-        logger.error('Ошибка при обращении к API')
+    except requests.RequestException:
+        pass
     if response.status_code != HTTPStatus.OK:
-        raise custom_exeptions.GetApiAnswerError('Сбой при запросе к API')
-    return response.json()
+        raise exeption.GetApiAnswerError('Сбой при запросе к API')
+    try:
+        return response.json()
+    except requests.exceptions.JSONDecodeError:
+        pass
 
 
 def check_response(response):
     """Проверка ответа API на корректность."""
-    homework_response = response['homeworks']
     if not isinstance(response, dict):
-        raise KeyError(
+        raise TypeError(
             f'Неверный тип данных. Type "homework_response":'
             f'{type(response)}. Ожидаемый тип dict'
         )
     if 'homeworks' not in response.keys():
-        raise custom_exeptions.CheckResponseError(
+        raise exeption.CheckResponseError(
             'Ошибка словаря по ключу homeworks'
         )
+    homework_response = response['homeworks']
     if not isinstance(homework_response, list):
-        raise custom_exeptions.CheckResponseError(
+        raise TypeError(
             f'Неверный тип данных. Type "homework_response":'
             f'{type(homework_response)}. Ожидаемый тип list'
         )
     if 'current_date' not in response.keys():
-        logger.error('"current_date" отсутствует в словаре')
+        raise exeption.CheckResponseError(
+            '"current_date" отсутствует в словаре'
+        )
+    if not isinstance(response['current_date'], int):
+        raise TypeError(
+            f'Неверный тип данных. Type "current_date":'
+            f'{type(response["current_date"])}. Ожидаемый тип int'
+        )
     return homework_response
 
 
@@ -84,11 +92,9 @@ def parse_status(homework):
         raise KeyError('В словаре homeworks отсутствует ключ "homework_name"')
     homework_status = homework.get('status')
     homework_name = homework.get('homework_name')
-    verdict = HOMEWORK_VERDICT[homework_status]
-    if not verdict:
-        raise KeyError(f'{verdict}  нет в HOMEWORK_VERDICT')
     if homework_status not in HOMEWORK_VERDICT:
         raise KeyError(f'Статус {homework_status} не существует')
+    verdict = HOMEWORK_VERDICT[homework_status]
     return f'Изменился статус проверки работы "{homework_name}". {verdict}'
 
 
@@ -113,8 +119,12 @@ def main():
             for homework in homeworks:
                 message = parse_status(homework)
                 send_message(bot, message)
-        except Exception as error:
+        except (
+                exeption.CheckResponseError, exeption.GetApiAnswerError
+        ) as error:
             logger.error(f'Сбой в работе программы: {error}')
+        except Exception as error:
+            logger.error(f'Критический сбой в работе программы: {error}')
             send_message(bot, str(error))
         finally:
             time.sleep(RETRY_TIME)
