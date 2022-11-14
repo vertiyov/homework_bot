@@ -8,7 +8,7 @@ import requests
 import telegram
 from dotenv import load_dotenv
 
-import exeption
+import exeptions
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -48,7 +48,7 @@ def get_api_answer(current_timestamp):
     except requests.RequestException:
         pass
     if response.status_code != HTTPStatus.OK:
-        raise exeption.GetApiAnswerError('Сбой при запросе к API')
+        raise exeptions.GetApiAnswerError('Сбой при запросе к API')
     try:
         return response.json()
     except requests.exceptions.JSONDecodeError:
@@ -63,7 +63,7 @@ def check_response(response):
             f'{type(response)}. Ожидаемый тип dict'
         )
     if 'homeworks' not in response.keys():
-        raise exeption.CheckResponseError(
+        raise exeptions.CheckResponseError(
             'Ошибка словаря по ключу homeworks'
         )
     homework_response = response['homeworks']
@@ -73,7 +73,7 @@ def check_response(response):
             f'{type(homework_response)}. Ожидаемый тип list'
         )
     if 'current_date' not in response.keys():
-        raise exeption.CheckResponseError(
+        raise exeptions.CheckResponseError(
             '"current_date" отсутствует в словаре'
         )
     if not isinstance(response['current_date'], int):
@@ -120,7 +120,7 @@ def main():
                 message = parse_status(homework)
                 send_message(bot, message)
         except (
-                exeption.CheckResponseError, exeption.GetApiAnswerError
+                exeptions.CheckResponseError, exeptions.GetApiAnswerError
         ) as error:
             logger.error(f'Сбой в работе программы: {error}')
         except Exception as error:
