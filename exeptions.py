@@ -4,3 +4,7 @@ class GetApiAnswerError(Exception):
 
 class CheckResponseError(Exception):
     pass
+
+
+class SendMessageError(Exception):
+    pass

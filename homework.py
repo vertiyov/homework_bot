@@ -33,8 +33,8 @@ def send_message(bot, message):
     """Отправка сообщения в Telegram чат."""
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-    except telegram.error.BadRequest:
-        pass
+    except telegram.error.TelegramError:
+        raise exeptions.SendMessageError('Cбой при отправке сообщения')
 
 
 def get_api_answer(current_timestamp):
@@ -44,15 +44,16 @@ def get_api_answer(current_timestamp):
         response = requests.get(
             ENDPOINT, headers=HEADERS, params=params,
         )
-        response.json()
     except requests.RequestException:
-        pass
+        raise exeptions.GetApiAnswerError('Ошибка при запросе к API')
+    except requests.exceptions.JSONDecodeError:
+        raise exeptions.GetApiAnswerError(
+            'Ошибка при запросе к API. Проверьте,'
+            ' что ответ приходит в формате JSON'
+        )
     if response.status_code != HTTPStatus.OK:
         raise exeptions.GetApiAnswerError('Сбой при запросе к API')
-    try:
-        return response.json()
-    except requests.exceptions.JSONDecodeError:
-        pass
+    return response.json()
 
 
 def check_response(response):
@@ -63,7 +64,7 @@ def check_response(response):
             f'{type(response)}. Ожидаемый тип dict'
         )
     if 'homeworks' not in response.keys():
-        raise exeptions.CheckResponseError(
+        raise KeyError(
             'Ошибка словаря по ключу homeworks'
         )
     homework_response = response['homeworks']
@@ -73,11 +74,11 @@ def check_response(response):
             f'{type(homework_response)}. Ожидаемый тип list'
         )
     if 'current_date' not in response.keys():
-        raise exeptions.CheckResponseError(
+        raise KeyError(
             '"current_date" отсутствует в словаре'
         )
     if not isinstance(response['current_date'], int):
-        raise TypeError(
+        raise exeptions.CheckResponseError(
             f'Неверный тип данных. Type "current_date":'
             f'{type(response["current_date"])}. Ожидаемый тип int'
         )
@@ -119,11 +120,12 @@ def main():
             for homework in homeworks:
                 message = parse_status(homework)
                 send_message(bot, message)
-        except (
-                exeptions.CheckResponseError, exeptions.GetApiAnswerError
-        ) as error:
+        except exeptions.CheckResponseError as error:
             logger.error(f'Сбой в работе программы: {error}')
-        except Exception as error:
+        except (
+                Exception, exeptions.GetApiAnswerError,
+                exeptions.SendMessageError
+        ) as error:
             logger.error(f'Критический сбой в работе программы: {error}')
             send_message(bot, str(error))
         finally:
