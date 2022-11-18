@@ -33,8 +33,10 @@ def send_message(bot, message):
     """Отправка сообщения в Telegram чат."""
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-    except telegram.error.TelegramError:
-        raise exeptions.SendMessageError('Cбой при отправке сообщения')
+    except telegram.error.TelegramError as error:
+        raise exeptions.SendMessageError(
+            f'Ошибка {error} при отправке сообщения {message}'
+        )
 
 
 def get_api_answer(current_timestamp):
@@ -44,6 +46,8 @@ def get_api_answer(current_timestamp):
         response = requests.get(
             ENDPOINT, headers=HEADERS, params=params,
         )
+        if response.status_code != HTTPStatus.OK:
+            raise exeptions.GetApiAnswerError('Сбой при запросе к API')
     except requests.RequestException:
         raise exeptions.GetApiAnswerError('Ошибка при запросе к API')
     except requests.exceptions.JSONDecodeError:
@@ -51,8 +55,6 @@ def get_api_answer(current_timestamp):
             'Ошибка при запросе к API. Проверьте,'
             ' что ответ приходит в формате JSON'
         )
-    if response.status_code != HTTPStatus.OK:
-        raise exeptions.GetApiAnswerError('Сбой при запросе к API')
     return response.json()
 
 
@@ -74,7 +76,7 @@ def check_response(response):
             f'{type(homework_response)}. Ожидаемый тип list'
         )
     if 'current_date' not in response.keys():
-        raise KeyError(
+        raise exeptions.CheckResponseError(
             '"current_date" отсутствует в словаре'
         )
     if not isinstance(response['current_date'], int):
@@ -123,17 +125,17 @@ def main():
         except exeptions.CheckResponseError as error:
             logger.error(f'Сбой в работе программы: {error}')
         except (
-                Exception, exeptions.GetApiAnswerError,
-                exeptions.SendMessageError
+                Exception, exeptions.GetApiAnswerError
         ) as error:
             logger.error(f'Критический сбой в работе программы: {error}')
             send_message(bot, str(error))
+        except exeptions.SendMessageError as error:
+            logger.error(f'Ошибка отправки сообщения: {error}')
         finally:
             time.sleep(RETRY_TIME)
 
 
 if __name__ == '__main__':
-    main()
     logging.basicConfig(
         level=logging.INFO,
         filename='homework_bot.log',
@@ -145,3 +147,5 @@ if __name__ == '__main__':
     )
     handler.setFormatter(formatter)
     logger.addHandler(handler)
+
+    main()
