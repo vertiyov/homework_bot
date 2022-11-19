@@ -28,6 +28,12 @@ HOMEWORK_VERDICT = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
+# Я понял, что не очень внимательно разбирал комментарии к прошлым ревью
+# и надо было глобально смотреть на каждую ошибку, исправлюсь в
+# следующем проекте! Зато сейчас вроде
+# бы как получился хороший код,
+# который не стыдно сдавать
+
 
 def send_message(bot, message):
     """Отправка сообщения в Telegram чат."""
@@ -48,14 +54,14 @@ def get_api_answer(current_timestamp):
         )
         if response.status_code != HTTPStatus.OK:
             raise exeptions.GetApiAnswerError('Сбой при запросе к API')
-    except requests.RequestException:
-        raise exeptions.GetApiAnswerError('Ошибка при запросе к API')
+        return response.json()
     except requests.exceptions.JSONDecodeError:
         raise exeptions.GetApiAnswerError(
             'Ошибка при запросе к API. Проверьте,'
             ' что ответ приходит в формате JSON'
         )
-    return response.json()
+    except requests.RequestException:
+        raise exeptions.GetApiAnswerError('Ошибка при запросе к API')
 
 
 def check_response(response):
@@ -122,15 +128,17 @@ def main():
             for homework in homeworks:
                 message = parse_status(homework)
                 send_message(bot, message)
-        except exeptions.CheckResponseError as error:
-            logger.error(f'Сбой в работе программы: {error}')
         except (
                 Exception, exeptions.GetApiAnswerError
         ) as error:
             logger.error(f'Критический сбой в работе программы: {error}')
             send_message(bot, str(error))
-        except exeptions.SendMessageError as error:
-            logger.error(f'Ошибка отправки сообщения: {error}')
+        except (
+                exeptions.SendMessageError, exeptions.CheckResponseError
+        ) as error:
+            logger.error(f'Сбой в работе программы: {error}')
+        else:
+            logger.info('Сообщение успешно отправлено')
         finally:
             time.sleep(RETRY_TIME)
 
