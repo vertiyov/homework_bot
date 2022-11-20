@@ -28,12 +28,6 @@ HOMEWORK_VERDICT = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
-# Я понял, что не очень внимательно разбирал комментарии к прошлым ревью
-# и надо было глобально смотреть на каждую ошибку, исправлюсь в
-# следующем проекте! Зато сейчас вроде
-# бы как получился хороший код,
-# который не стыдно сдавать
-
 
 def send_message(bot, message):
     """Отправка сообщения в Telegram чат."""
@@ -43,6 +37,8 @@ def send_message(bot, message):
         raise exeptions.SendMessageError(
             f'Ошибка {error} при отправке сообщения {message}'
         )
+    else:
+        logger.info('Сообщение успешно отправлено')
 
 
 def get_api_answer(current_timestamp):
@@ -129,16 +125,15 @@ def main():
                 message = parse_status(homework)
                 send_message(bot, message)
         except (
-                Exception, exeptions.GetApiAnswerError
-        ) as error:
-            logger.error(f'Критический сбой в работе программы: {error}')
-            send_message(bot, str(error))
-        except (
                 exeptions.SendMessageError, exeptions.CheckResponseError
         ) as error:
             logger.error(f'Сбой в работе программы: {error}')
-        else:
-            logger.info('Сообщение успешно отправлено')
+        except Exception as error:
+            logger.error(f'Критический сбой в работе программы: {error}')
+            try:
+                send_message(bot, str(error))
+            except exeptions.SendMessageError:
+                logger.error(f'Сбой при отправке сообщения: {error}')
         finally:
             time.sleep(RETRY_TIME)
 
